@@ -90,7 +90,7 @@ col.names = c(
   "rep",
   "NH4N",
   "SRP",
-  "NO3"
+  "NO3N"
 );
 
 # Read data from input file(s)
@@ -125,7 +125,7 @@ metaEnv$tableNH4SRP.meta <- data.frame(
   rep = atts$rep,
   NH4N = atts$NH4N,
   SRP = atts$SRP,
-  NO3 = atts$NO3,
+  NO3N = atts$NO3N,
   row.names = rownames(atts)
 );
 
