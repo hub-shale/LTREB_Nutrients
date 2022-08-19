@@ -1,0 +1,1147 @@
+---
+title: "Metadata - Nutrients - Upper Clark Fork River - WY2019"
+---
+
+```{r setup, include=FALSE}
+
+# Do not echo code chunks in rendered document
+
+knitr::opts_chunk$set(echo = FALSE);
+
+# Do not render values returned by code in code chunks
+
+knitr::opts_chunk$set(results = "hide")
+
+# Clear the global environment
+
+rm(list = ls());
+
+# Load the tidyr package for use of the pipe operator
+
+library(tidyr)
+
+```
+
+<!-- Automatically populate a description of the compilation of this file. -->
+
+Generated from R markdown file **./02_protocol/`r knitr::current_input()`**, last compiled on `r Sys.time()`
+
+<!--   Note: Data described by this metadata file should be in csv text file format. If starting with an Excel spreadsheet, please make sure it does not contain any formulas and comments on cells. 
+Computational Excel sheets with formulas should be stored as a template in 02_protocol.
+If you need comments put them in their own column. If data were used in a database and major table linking is necessary to analyze, please de-normalize into a flat file, not just database table exports.
+-->
+
+```{r}
+
+# Make sure the target directory for EML exists
+
+emlalPath <- "./03_incremental/temp/EML";
+dir.create(
+  path = emlalPath,
+  recursive = TRUE,
+  showWarnings = FALSE
+);
+
+
+# Read the project attributes table
+# and restructure for convenience.  
+
+#  -- attributes.xlsx is a representation of elements in a single data set only.
+#  (First step: Using only final data tables and all metadata, modify attributes.xlsx to include 
+#   all column/variables in this data set only (not a master list).
+#   Dependencies: final data tables, researcher-provided metadata (e.g., data dictionary, edi metadata template)
+#   Specific to this data set: Current final tables: 
+#  ./04_product/AnnualAggregateFile-NH4-SRP-NO3-WY2019.csv
+#     Column headers:  dateString, year, month, day, siteID, rep, NH4N, SRP, NO3
+
+
+
+atts <- as.data.frame(
+  t(as.matrix(
+    readxl::read_excel(
+      path = "./01_input/meta/attributes.xlsx",
+      sheet = "attributes",
+      range = readxl::cell_limits(ul = c(2, 3)),
+      col_names = TRUE,
+      col_types = rep("text", times = 10)
+    )
+  ))
+);
+names(atts) <- readxl::read_excel(
+  path = "./01_input/meta/attributes.xlsx",
+  sheet = "attributes",
+  range = readxl::cell_limits(ul = c(3, 2), lr = c(NA, 2)),
+  col_names = "rownames",
+  col_types = "text"
+)$rownames;
+atts[is.na(atts)] <- "";
+
+# Load the incremental metadata from data processing
+
+metaEnv <- readRDS(file = "./03_incremental/temp/metadata.RData");
+
+```
+
+# Dataset Title
+<!--     (be descriptive, more than 5 words.  Include what, where, when.)
+-->
+
+```{r}
+
+dataset.title <- paste(
+  "Concentration of nutrients",
+  "in water samples taken from",
+  "the upper Clark Fork River (Montana, USA)",
+  "during water year 2019 (1 Oct 2018 - 30 Sept 2019)"
+)
+
+```
+
+**`r dataset.title`**
+
+
+# Abstract
+<!-- Modify /03_incremental/meta/abstract.md file to include what, where, when, why (brief), and how (brief methods).
+-->
+
+
+```{r}
+
+# Load the abstract from the markdown file
+# and copy the file to the EML directory
+
+abstract <- readtext::readtext(
+  file = "./03_incremental/meta/abstract.md",
+  verbosity = 0
+);
+file.copy(
+  from = "./03_incremental/meta/abstract.md",
+  to = sprintf(
+    "%s/abstract.md",
+    emlalPath
+  ),
+  overwrite = TRUE
+);
+
+```
+
+`r abstract$text`
+
+# Purpose
+<!-- Purpose should include a clear statement of the scholarly rationale for 
+collecting this data set.  Historical to present statements (e.g., related to 
+contamination, pollution, restoration, etc.) may be appropriate to 
+define the context of the site and/or hypotheses.  Other contextual information
+of interest includes reference to the general nature of associated data sets, 
+the intention of any attendant funding, and the motivation for continued 
+collection.
+
+-->
+
+
+
+```{r}
+
+# Load the purpose text from the file.
+
+purposeText <- readtext::readtext(
+  file = "./03_incremental/meta/purpose.txt"
+);
+
+```
+
+`r purposeText$text `
+
+
+# Creators
+
+<!-- Consider both attribution and responsibility.
+Define contributor roles using the Contributor Roles Taxonomy where possible:
+https://credit.niso.org/.
+  Project title, fundingAgency and fundingNumber will remain empty until
+  integrated into the personnel table in the Funding of this work section.
+-->
+
+
+```{r}
+
+# Load the table of project people
+#   (First step: modify people.xlsx to include all contributors to this data set (not a master list).
+#   list INVESTIGATORS in people.xlsx in order as for a paper with e-mail addresses, organization 
+#   and preferably ORCID ID, 
+#   if you don’t have one, get it, it’s easy and free: http://orcid.org/). Add table rows as needed.
+
+
+people <- as.data.frame(
+  readxl::read_excel(
+    path = "./01_input/meta/people.xlsx",
+    sheet = "Table 1",
+    range = readxl::cell_limits(ul = c(4, 2)),
+    col_names = TRUE,
+    col_types = rep("text", times = 7)
+  )
+);
+rownames(people) <- people$internalUniqueID;
+people <- people[,2:ncol(people)];
+names(people)[names(people) == "ORCID"] <- "userId";
+
+people[is.na(people)] <- "";
+
+people$role <- "";
+people$projectTitle <- "";
+people$fundingAgency <- "";
+people$fundingNumber <- "";
+
+
+# Define rows of the personnel table for creators
+
+personnel <- people["MauryV",];
+rownames(personnel) <- "MauryCreator";
+personnel["MauryCreator",]$role <- "creator"
+
+personnel["ClaireCreator",] <- people["ClaireU",];
+personnel["ClaireCreator",]$role <- "creator" #--CRediT creator role mapping: investigation, data curation.  Investigation = Conducting a research and investigation process, specifically performing the experiments, or data/evidence collection.  ID: 2451924d-425e-4778-9f4c-36c848ca70c2
+
+personnel["RafaelCreator",] <- people["RafaFL",];
+personnel["RafaelCreator",]$role <- "creator" #--CRediT creator role mapping: Formal analysis, Data curation" Formal analysis = Application of statistical, mathematical, computational, or other formal techniques to analyse or synthesize study data.
+# ID: 95394cbd-4dc8-4735-b589-7e5f9e622b3f
+
+
+# Specify the primary contact in the personnel table
+
+personnel["MauryContact",] <- people["MauryV",];
+personnel["MauryContact",]$role <- "contact"
+
+# Create the table for creators in this document
+
+out <- data.frame(
+  personnel$givenName,
+  personnel$middleInitial,
+  personnel$surName,
+  personnel$organizationName,
+  personnel$electronicMailAddress,
+  personnel$userId
+);
+names(out) <- c(
+  "First Name",
+  "Middle Initial",
+  "Last Name",
+  "Organization",
+  "e-mail address",
+  "ORCID"
+);
+out <- out[1:(nrow(personnel) - 1),]
+
+```
+
+Maury Valett is the primary contact for this dataset.
+
+`r knitr::kable(out) `
+
+
+# Other personnel names and roles
+
+<!--
+   Define contributor roles using the Contributor Roles Taxonomy where possible: https://credit.niso.org/.
+-->
+
+
+```{r}
+
+# Add the other personnel to the personnel table
+
+other <- people["FischerY",];
+rownames(other) <- "Fischer";
+other["Fischer",]$role <- "Investigation"
+
+other["Royce",] <- people["RoyceE",];
+other["Royce",]$role <- "Investigation"
+
+other["Patrick",] <- people["PatrickH",];
+other["Patrick",]$role <- "Investigation"
+
+other["Venice",] <- people["VeniceB",];
+other["Venice",]$role <- "Data curation"
+
+other["Shale",] <- people["ShaleH",];
+other["Shale",]$role <- "Data curation"
+
+other["RobOther",] <- people["RobP",];
+other["RobOther",]$role <- "Data curation and LTREB project PI at MSU"
+
+other["MauryOther",] <- people["MauryV",];
+other["MauryOther",]$role <- "Lead LTREB PI and Project PI at UM; CREWS co-PI"
+
+other["MikeOther",] <- people["MikeD",];
+other["MikeOther",]$role <- "LTREB Project co-PI"
+
+other["Marc",] <- people["MarcP",];
+other["Marc",]$role <- "LTREB Project co-PI"
+
+other["Juliana",] <- people["JulianaD",];
+other["Juliana",]$role <- "LTREB Project co-PI"
+
+personnel <- rbind(personnel, other);
+
+# Create the table for other personnel for this document
+
+other <- data.frame(
+  other$givenName,
+  other$middleInitial,
+  other$surName,
+  other$organizationName,
+  other$electronicMailAddress,
+  other$userId,
+  other$role
+);
+names(other) <- c(
+  "First Name",
+  "Middle Initial",
+  "Last Name",
+  "Organization",
+  "e-mail address",
+  "ORCID",
+  "Role in Project"
+);
+
+```
+
+`r knitr::kable(other) `
+
+
+# License
+
+<!-- 1st step: Modify 03_incremental/meta/intellectual_rights.md to specify 
+file names for both the code license (required) and the data rights (optional).  
+Otherwise text should remain as is.
+
+-->
+
+
+```{r}
+
+# Load the license text file and copy to the 03_incremental/temp/EML directory
+
+license <- readtext::readtext(
+  file = "./03_incremental/meta/intellectual_rights.md",
+  verbosity = 0
+);
+file.copy(
+  from = "./03_incremental/meta/intellectual_rights.md",
+  to = sprintf(
+    "%s/intellectual_rights.txt", 
+    emlalPath
+  ),
+  overwrite = TRUE
+);
+
+```
+
+`r license$text `
+
+# Keywords
+<!-- Use a controlled vocabulary to select up to five terms to fill the first 
+five keyword slots.  Two good options include:
+:: LTER Controlled Vocabulary: https://vocab.lternet.edu/vocab/vocab/index.php
+:: NAL Agricultural Thesaurus and Glossary (NALT): https://agclass.nal.usda.gov/
+
+Additionally, determine up to four keywords that best describe your lab, station, and/or project (e.g., Trout Lake Station, NTL LTER). This will help others discover your data by site/project.  
+
+The final keyword(s) for CREWS or LTREB funded projects should be the primary grant award number(s):
+CREWS, insert: "NSF OIA 1757351"
+LTREB, insert: "NSF DEB LTREB 1655197"
+Use both if they both apply.
+-->
+
+```{r}
+
+# Create the keywords table
+
+keywords <- rbind.data.frame(
+  #list(keyword = "river water", keywordThesaurus = "NALT"),
+  list(keyword = "dissolved nutrients", keywordThesaurus = "LTER Controlled Vocabulary"),
+  list(keyword = "concentration", keywordThesaurus = "LTER Controlled Vocabulary"),
+  list(keyword = "long term monitoring", keywordThesaurus = "LTER Controlled Vocabulary"),
+  list(keyword = "water chemistry", keywordThesaurus = "LTER Controlled Vocabulary"),
+  list(keyword = "water quality", keywordThesaurus = "LTER Controlled Vocabulary"),
+# list(keyword = "nitrate", keywordThesaurus = "LTER Controlled Vocabulary"), 
+# list(keyword = "ammonium", keywordThesaurus = "LTER Controlled Vocabulary"),
+# list(keyword = "phosphate", keywordThesaurus = "LTER Controlled Vocabulary"),
+  list(keyword = "Upper Clark Fork River restoration", keywordThesaurus = ""),
+  list(keyword = "Montana", keywordThesaurus = ""),
+  list(keyword = "Northwestern United States", keywordThesaurus = ""),
+  list(keyword = "Northwestern Forested Mountains Ecoregion", keywordThesaurus = ""),
+  list(keyword = "NSF DEB LTREB 1655197", keywordThesaurus = "")
+);
+
+# Function to generate a markdown character string with
+# the keywords grouped by thesaurus
+
+printKeywords <- function(keywords)
+{
+  kw <- split(x = keywords, f = keywords$keywordThesaurus);
+  names(kw)[names(kw) == ""] <- "No thesaurus";
+  kwString <- "";
+  for(name in names(kw)) {
+    kwString <- paste0(
+      kwString,
+      "**", name, ":** ",
+      paste(kw[[name]]$keyword, collapse = ", "),
+      " \n\n"
+    );
+  }
+  return(kwString);
+}
+
+```
+
+`r printKeywords(keywords) `
+
+
+```{r}
+
+# Write the keywords table to the 03_incremental/temp/EML directory
+
+write.table(
+  x = keywords,
+  file = sprintf(
+    "%s/keywords.txt",
+    emlalPath
+  ),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE,
+  na = ""
+)
+
+```
+
+# Funding of this work
+<!-- 
+  :: First step: Determine whether funding is for LTREB, CREWS, or both.  Comment out/
+  add in the correct sources.  If Venice is included (for curation) in other personnel, CREWS
+  should be included.
+  
+  -->
+
+```{r}
+
+# Add the funding to the personnel table
+
+funding <- people["MauryV",];
+rownames(funding) <- "MauryPI";
+funding["MauryPI",]$role <- "PI";
+funding["MauryPI",]$projectTitle <- paste(
+  "LTREB: Collaborative research -",
+  "River ecosystem responses to floodplain restoration"
+);
+funding["MauryPI",]$fundingAgency <- "US National Science Foundation";
+funding["MauryPI",]$fundingNumber <- "1655197";
+
+funding["RobPI",] <- people["RobP",];
+funding["RobPI",]$role <- "PI"
+funding["RobPI",]$projectTitle <- paste(
+  "LTREB: Collaborative research -",
+  "River ecosystem responses to floodplain restoration"
+);
+funding["RobPI",]$fundingAgency <- "US National Science Foundation";
+funding["RobPI",]$fundingNumber <- "1655198";
+
+funding["RayPI",] <- people["RayC",];
+funding["RayPI",]$role <- "CREWS Project PI"
+funding["RayPI",]$projectTitle <- paste(
+"RII Track-1 Consortium for Research on Environmental Water Systems"
+);
+funding["RayPI",]$fundingAgency <- "US National Science Foundation";
+funding["RayPI",]$fundingNumber <- "1757351";
+
+personnel <- rbind(personnel, funding);
+
+# Create the table for funding personnel for this document
+
+funding <- data.frame(
+  funding$givenName,
+  funding$middleInitial,
+  funding$surName,
+  funding$userId,
+  funding$projectTitle,
+  funding$fundingAgency,
+  funding$fundingNumber
+);
+names(funding) <- c(
+  "PI First Name",
+  "PI Middle Initial",
+  "PI Last Name",
+  "PI ORCID",
+  "Title of Grant",
+  "Funding Agency",
+  "Funding Identification Number"
+);
+
+```
+
+`r knitr::kable(funding) `
+
+
+```{r}
+
+# Write the personnel table to the EML directory
+
+write.table(
+  x = personnel,
+  file = sprintf(
+    "%s/personnel.txt",
+    emlalPath
+  ),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE,
+  na = ""
+)
+
+```
+
+# Timeframe
+<!-- Content here is pulled from Global Environment metaEnv object.  No need to 
+modify anything here, only check the html to verify that the correct dates are 
+represented once run.
+-->
+
+```{r}
+
+maintenance.description <- "Completed: Updates to these data are not expected"
+
+```
+
+* Begin date: `r format(metaEnv$startTime, format = "%e %B %Y")`, Date code: `r format(metaEnv$startTime, format = "%Y%m%d")`
+* End date: `r format(metaEnv$endTime, format = "%e %B %Y")`, Date code: `r format(metaEnv$endTime, format = "%Y%m%d")`
+* `r maintenance.description `
+
+
+# Geographic location
+<!-- Data content standard: All coordinates should be recorded in decimal degrees.  
+However, if recorded in minutes and seconds, code below will convert to decimal 
+degrees.
+
+Verbal descriptions may be presented after the subsection "Define the table of 
+categories associated with sites".  Otherwise, content in this code chunk is 
+pulled from Global Environment metaEnv object.  No need to 
+modify anything here, only check the html to verify that the correct sites are 
+represented once run, that none are missing, and that any decimal degree 
+conversions are correct.
+-->
+
+```{r}
+
+# Read the projects sites table
+
+sitesIn <- readxl::read_excel(
+  path = "./01_input/meta/2021 Site Table.xlsx",
+  sheet = "Table 1",
+  range = readxl::cell_limits(ul = c(4, 2)),
+  col_names = TRUE,
+  col_types = c(
+    rep("text", times = 4),
+    rep("numeric", times = 6)
+  )
+);
+sites <- as.data.frame(sitesIn[,1:4]);
+
+# Create decimal degrees latitude and longitude columns
+
+sites$lat <- 
+  sitesIn$LatDegreeNorth + 
+  sitesIn$LatMinuteNorth / 60 + 
+  sitesIn$LatSecondNorth / 3600;
+
+sites$long <-
+  - sitesIn$LongDegreeWest -
+  sitesIn$LongMinuteWest / 60 -
+  sitesIn$LongSecondWest / 3600;
+
+# Assign row names to site names for indexing
+
+rownames(sites) <- sites$SiteID;
+
+# Filter out the sites covered by this data product
+
+# THIS IS BREAKING
+# RAPCOMMENT: See the processing script. The strings used for indexing need to
+# match those in the master list exactly for this to work. I.e., "1" is not
+# going to match "001".
+sites <- sites[metaEnv$sites, ];
+
+# Define the table for geographical coverage
+
+geoCoverage <- data.frame(
+  geographicDescription = sprintf(
+    "Site ID %s, restoration project reach %s: %s (site name: %s)",
+    sites$SiteID,
+    sites$Reach,
+    sites$LocationDesc,
+    sites$SiteName
+  ),
+  northBoundingCoordinate = sites$lat,
+  southBoundingCoordinate = sites$lat,
+  eastBoundingCoordinate = sites$long,
+  westBoundingCoordinate = sites$long
+)
+colNames <- c(
+  "Project Site ID",
+  "Restoration reach",
+  "Common site name",
+  "Location description",
+  "Latitude",
+  "Longitude"
+)
+
+# Define the table of categories associated with sites
+
+sitesCategories <- data.frame(
+  attributeName = "siteID",
+  code = metaEnv$sites,
+  definition = sprintf(
+    "Project site number %s",
+    metaEnv$sites
+  )
+)
+
+```
+
+Verbal description: 200km of the Upper Clark Fork River beginning at the headwaters formed by Warm Springs Creek and Silverbow Creek to the end of the study site which is Missoula, MT above the input of the Rattlesnake Creek tributary. 
+
+Data are included for the following LTREB project sites. Positive latitudes indicate degrees north and negative longitudes indicate degrees west.
+
+`r knitr::kable(x = sites, row.names = FALSE, col.names = colNames, align = "l")`
+
+
+```{r}
+
+# Write the geographical coverage table to the EML directory
+
+write.table(
+  x = geoCoverage,
+  file = sprintf(
+    "%s/geographic_coverage.txt",
+    emlalPath
+  ),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE,
+  na = ""
+);
+
+```
+
+# Methods
+
+<!-- 
+Code Notes:
+Methods code below does not require editing beyond confirming the file path
+of methods.md.  
+
+Content Standard Notes:
+methods.md requires extensive editing, particularly to pair file 
+names with file descriptions. Third order and lower files do not need to be 
+named/described unless the data product makes extensive use of lower order hierarchical 
+structures for essential data/metadata.
+
+Methods narrative description should focus on how the data were collected/derived, 
+and should be cited as appropriate.  Standard operating procedures (SOPs) are 
+recommended for inclusion in 02_protocol or separate archive (e.g., protocols.io), 
+and are to be described in this section regardless of repository.  All derived 
+data products must cite source data throughout the full chain of provenance, and 
+include database search parameters sufficient to recreate the derived dataset when 
+retrieving a subset from a larger database.
+
+-->
+```{r}
+
+methods <- readtext::readtext(
+  file = "./03_incremental/meta/methods.md",
+  verbosity = 0
+);
+file.copy(
+  from = "./03_incremental/meta/methods.md",
+  to = sprintf(
+    "%s/methods.md",
+    emlalPath
+  ),
+  overwrite = TRUE
+)
+
+```
+
+`r methods$text `
+
+# Data tables and other entities
+
+<!--The following code chunks (extending until the comment titled "Non-csv files at resource 
+root level") are for csv files at resource root level only.  For example, in this
+data product, these chunks apply only to AnnualAggregateFile-NH4-SRP-NO3-WY2019.csv.
+
+Code Notes and Content Standards:
+Confirm the variable names of the "longmeta" object for both functions (tableDoc, tableAtts) match the column headers in the file 01_input/meta/attributes.xlsx.  Prefer to make changes to attributes.xlsx column headers rather than the longmeta variable names for consistency. Any changes made to attributes.xlsx first require re-run of 01_processing.Rmd prior to re-running this file (10_metadata.Rmd); prefer instead to run 99_runall.R.  Before re-running 01_processing / 99_runall, confirm within 01_processing that the filepath to attributes.xlsx is still correct. Next, spot check longmeta against attributes.xlsx again to confirm that the most current values are correctly transferring from file to object.  Confirm that 03_incremental/temp/metadata.Rdata is updating when running 01_processing.Rmd / 99_runall.R.
+
+-->
+
+```{r}
+
+tableDoc <- function(longmeta) {
+  
+  df <- data.frame(
+    sprintf(
+      fmt = "%s. Property: %s. Entity: %s. Method: %s.",
+      longmeta$Desc,
+      longmeta$Property,
+      longmeta$Entity,
+      longmeta$Method
+    ),
+    longmeta$Units,
+    paste(longmeta$EMLUnits, longmeta$EMLTimeFormat),
+    longmeta$EMLClass,
+    longmeta$EMLMissingCode,
+    longmeta$EMLMissingExp,
+    row.names = rownames(longmeta)
+  );
+  names(df) <- c(
+    "Description",
+    "Units",
+    "EML Units or Time Format",
+    "EML Class",
+    "Missing value code",
+    "Missing value code explanation"
+  );
+  return(df)
+  
+}
+
+tableAtt <- function(longmeta, tableName, emlalPath) {
+
+  attributes <- data.frame(
+    attributeName = rownames(longmeta),
+    attributeDefinition = sprintf(
+      fmt = "%s. Property: %s. Entity: %s. Method: %s.",
+      longmeta$Desc,
+      longmeta$Property,
+      longmeta$Entity,
+      longmeta$Method
+    ),
+    class = longmeta$EMLClass,
+    unit = longmeta$EMLUnits,
+    dateTimeFormatString = longmeta$EMLTimeFormat,
+    missingValueCode = longmeta$EMLMissingCode,
+    missingValueCodeExplanation = longmeta$EMLMissingExp
+  );
+
+  write.table(
+    x = attributes,
+    file = sprintf(
+      "%s/attributes_%s.txt",
+      emlalPath,
+      tableName
+    ),
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE,
+    na = ""
+  )
+
+    
+}
+
+```
+<!--
+Replace the Global Environment metaenv environment entity values below with 
+the current value, wherever they appear, (metaenv$[thisEntity].{name,desc,meta}).
+-->
+
+#### **Table name:** `r sprintf("%s.csv", metaEnv$tableNH4SRP.name)`
+#### **Table description:** `r metaEnv$tableNH4SRP.desc`
+
+
+```{r}
+
+# Convert the column metadata to long form
+
+longmeta <- as.data.frame(t(as.matrix(metaEnv$tableNH4SRP.meta)));
+
+```
+
+`r knitr::kable(tableDoc(longmeta)) `
+
+```{r}
+
+tableAtt(
+  longmeta = longmeta, 
+  tableName = metaEnv$tableNH4SRP.name, 
+  emlalPath = emlalPath
+);
+
+# Write the categorical variable tables to the EML directory
+
+write.table(
+  x = rbind(
+    sitesCategories,
+    data.frame(
+      attributeName = rep("repID", times = 3),
+      code = c("a", "b", "c"),
+      definition = c(
+        "Replicate sample a",
+        "Replicate sample b",
+        "Replicate sample c"
+      )
+    )
+  ),
+  file = sprintf(
+    "%s/catvars_%s.txt",
+    emlalPath,
+    metaEnv$tableNH4SRP.name
+  ),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE,
+  na = ""
+);
+#FIXME : 20220519 : repID data object is failing to generate.  When running runall to gen xml, get this:
+#Categorical variables (AnnualAggregateFile-NH4-SRP-NO3-WY2018.csv, Required) - Variables defined as categorical will be reclassified as 'character' until these issues are fixed:
+#1.  Missing categorical variable metadata. Variables are listed as 'categorical' in the table attributes metadata but are not found in the categorical variables metadata. These variables are missing: rep
+
+```
+
+<!--Non-csv files at resource root level
+The following chunk (extending until the section titled "Zip the files") is for non-csv files at resource root level only.  For example, in this data product, this chunk applies only to the soon-to-be-generated *.zip files (generated from root level directories "01_..." - "03_..." only), and to AnnualAggregateFile-NH4-SRP-NO3-WY2019_vis.pdf.
+
+Confirm "otherNames" file names match with the soon-to-be-generated *.zip and non-csv files only.  "otherDescs" descriptions should match in respective order with the "otherNames" entries.
+
+-->
+```{r}
+
+otherNames <- c(
+  "01_input.zip",
+  "02_protocol.zip",
+  "03_incremental.zip",
+  "AnnualAggregateFile-NH4-SRP-NO3-WY2019_vis.pdf"
+);
+otherDescs <- c(
+  paste(
+    "Compressed data pipeline folder containing original data files and",
+    "project default metadata.",
+    "See methods for details."
+  ),
+  paste(
+    "Compressed data pipeline folder containing computational spreadsheet templates, ",
+    "protocols and SOPs, and",
+    "R markdown and R scripts",
+    "for processing data and metadata.",
+    "See methods for details."
+  ),
+  paste(
+    "Compressed data pipeline folder containing detailed notes",
+    "and incremental data associated with generation of the data product.",
+    "See methods for details."
+  ),
+  paste(
+    "Basic visualization of the NH4N, PO4-SRP, and NO3 data included in this product",
+    "(postscript data file)."
+  )
+);
+
+```
+
+`r paste("\n\n#### **Other file name:** ", otherNames, "\n\n#### **Other file description:**", otherDescs) `
+
+# Zip the pipeline
+
+```{r}
+# Customized zip function for capturing output (doctored version of utils::zip)
+
+customZip <- function (
+  zipfile, files, flags = "-r9X", 
+  extras = "", zip = Sys.getenv("R_ZIPCMD", "zip"), 
+  stdout = TRUE, stderr = TRUE
+) 
+{
+  if (missing(flags) && (!is.character(files) || !length(files))) 
+    stop("'files' must be a character vector specifying one or more filepaths")
+  if (!is.character(zip) || length(zip) != 1L || !nzchar(zip)) 
+    stop("argument 'zip' must be a non-empty character string")
+  args <- c(flags, shQuote(path.expand(zipfile)), shQuote(files), 
+            extras)
+  if (sum(nchar(c(args, Sys.getenv()))) + length(args) > 8000) {
+    args <- c(flags, "-@", shQuote(path.expand(zipfile)), 
+              extras)
+    input <- files
+  }
+  else input <- NULL
+  if (.Platform$OS.type == "windows") 
+    invisible(system2(command = zip, args = args, input = input, invisible = TRUE, stdout = stdout, stderr = stderr))
+  else invisible(system2(zip, args, input = input, stdout = stdout, stderr = stderr))
+}
+```
+
+Create the pipeline zip files. Warnings with status 12 are normal if the zip file already exists and no files need to be freshened.
+
+### 01_input.zip
+
+```{r results = "asis"}
+exclusions <- c(
+  "./01_input/temp/*", 
+  "./01_input/.temp/*"
+)
+if (length(exclusions) > 0) {
+  cat("*This pipeline directory is zipped with the following paths excluded:*\n\n")
+  cat(
+    paste(
+      gsub("[*]", "\\\\*", exclusions),
+      collapse = "  \n"
+    )
+  )
+} 
+```
+
+```{r results = "asis"}
+output <- customZip(
+  zipfile = "./04_product/01_input.zip",
+  files = c(
+    "./01_input"
+  ),
+  flags = ifelse(
+    file.exists("./04_product/01_input.zip"), 
+    "-r9u", 
+    "-r9"
+  ),
+  extras = paste(
+    "-x",
+    paste(shQuote(exclusions), collapse = " ")
+  )
+)
+if (length(output) > 0) {
+  cat("*Output from call to zip:* \n\n")
+  cat(
+    paste(output, collapse = "  \n")
+  )
+} 
+```
+
+### 02_protocol.zip:
+
+```{r results = "asis"}
+exclusions <- c(
+  "./02_protocol/temp/*", 
+  "./02_protocol/.temp/*",
+  "./02_protocol/.Rproj.user/*",
+  "./02_protocol/.Rhistory/*"
+)
+if (length(exclusions) > 0) {
+  cat("*This pipeline directory is zipped with the following paths excluded:*\n\n")
+  cat(
+    paste(
+      gsub("[*]", "\\\\*", exclusions),
+      collapse = "  \n"
+    )
+  )
+} 
+```
+
+```{r results = "asis"}
+output <- customZip(
+  zipfile = "./04_product/02_protocol.zip",
+  files = c(
+    "./02_protocol"
+  ),
+  flags = ifelse(
+    file.exists("./04_product/02_protocol.zip"), 
+    "-r9u", 
+    "-r9"
+  ),
+  extras = paste(
+    "-x",
+    paste(shQuote(exclusions), collapse = " ")
+  )
+)
+if (length(output) > 0) {
+  cat("*Output from call to zip:* \n\n")
+  cat(
+    paste(output, collapse = "  \n")
+  )
+} 
+```
+
+### 03_incremental.zip:
+
+```{r results = "asis"}
+exclusions <- c(
+  "./03_incremental/temp/*", 
+  "./03_incremental/.temp/*",
+  "./03_incremental/metadata_summary.html"
+)
+if (length(exclusions) > 0) {
+  cat("*This pipeline directory is zipped with the following paths excluded:*\n\n")
+  cat(
+        paste(
+      gsub("[*]", "\\\\*", exclusions),
+      collapse = "  \n"
+    )
+  )
+} 
+```
+
+```{r results = "asis"}
+output <- customZip(
+  zipfile = "./04_product/03_incremental.zip",
+  files = c(
+    "./03_incremental"
+  ),
+  flags = ifelse(
+    file.exists("./04_product/03_incremental.zip"), 
+    "-r9u", 
+    "-r9"
+  ),
+  extras = paste(
+    "-x",
+    paste(shQuote(exclusions), collapse = " ")
+  )
+)
+if (length(output) > 0) {
+  cat("*Output from call to zip:* \n\n")
+  cat(
+    paste(output, collapse = "  \n")
+  )
+} 
+```
+
+# Test build of EML file
+
+```{r}
+
+if (exists("customUnits")) {
+  
+  write.table(
+    x = customUnits,
+    file = sprintf(
+      "%s/custom_units.txt",
+      emlalPath
+    ),
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE,
+    na = ""
+  )
+  
+}
+
+customUnitsOut <- function() {
+  if(exists("customUnits")) {
+    return(
+      c(
+        "Custom units table: <BR><BR>",
+        knitr::kable(customUnits, row.names = FALSE, align = "l")
+      )
+    );
+  }
+}
+
+```
+
+`r if(exists("customUnits")) { "Custom units table: <BR><BR>"} `
+`r if(exists("customUnits")) { knitr::kable(customUnits, row.names = FALSE, align = "l") } `
+
+Output from the call to EMLassemblyline::make_eml:
+
+```{r}
+
+package.id <- "edi.906.3" # UPDATED FOR 2019
+
+emlFilePath <- sprintf(
+  "./04_product/%s.xml",
+  package.id
+);
+
+makeEML <- function() {
+  EMLassemblyline::make_eml(
+    path = emlalPath,
+    data.path = "./04_product",
+    eml.path = "./04_product", 
+    dataset.title = dataset.title, 
+    temporal.coverage = c(
+      format(metaEnv$startTime, "%Y-%m-%d"), 
+      format(metaEnv$endTime, "%Y-%m-%d")
+    ), 
+    maintenance.description = maintenance.description, 
+   # data.table = tableName, 
+  #  data.table.description = tableDescs,
+   # data.table.quote.character = rep("\"", times = length(tableName)),
+  ##-above in orig script; this line not in original script: tableName = metaEnv$tableNH4SRP.name -- temp here for testing
+  data.table = sprintf(
+      "%s.csv",
+      c(
+        metaEnv$tableNH4SRP.name
+      )
+    ), 
+    data.table.description = c(
+        metaEnv$tableNH4SRP.desc
+    ),
+    data.table.quote.character = rep("\"", times = 9),
+  ## FIXME -- what does times equal here? --##
+  ## -- END changes to original script 20220519---
+    other.entity = otherNames,
+    other.entity.description = otherDescs,
+    user.id = "UCFRResearch",
+    user.domain = "EDI", 
+    package.id = package.id
+  );
+  
+  # Read the eml file
+  
+  emlxml <- xml2::read_xml(x = emlFilePath);
+  
+  # Replace intellectual rights with markdown element
+  
+  intRights <- xml2::xml_find_first(emlxml, ".//dataset/intellectualRights");
+  
+  markdown <- intRights %>% 
+    xml2::xml_replace("intellectualRights") %>% 
+    xml2::xml_add_child("markdown");
+  xml2::xml_text(markdown) <- gsub(
+    pattern = "\n\n", 
+    replacement = "\r\n\r\n", 
+    license$text
+  );
+  
+  # Add the purpose element
+  
+  coverage <- xml2::xml_find_first(emlxml, ".//dataset/coverage");
+  purpose <- coverage %>% xml2::xml_add_sibling("purpose") %>% xml2::xml_add_child("markdown");
+  xml2::xml_text(purpose) <- purposeText$text;
+  
+  # Write the xml
+  
+  xml2::write_xml(emlxml, file = emlFilePath);
+  
+}
+
+makeEML();
+
+```
+
+Output from the call to EMLassemblyline::issues: 
+
+```{r}
+
+EMLassemblyline::issues();
+
+```
+
+
+# Summary of R session used to compile this Rmarkdown
+
+```{r results = "markup"}
+
+print(sessionInfo()) 
+
+```
+
+
+# Temporary Notes
+# 20220519: SEARCH FIXME

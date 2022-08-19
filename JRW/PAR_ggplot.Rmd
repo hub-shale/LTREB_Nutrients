@@ -1,0 +1,54 @@
+---
+title: "plotting_scrap"
+author: "Shale Hunter"
+date: '2022-08-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+```
+
+
+
+```{r}
+# objects inherited from workflow.Rmd
+
+dfw = df 
+
+dfw$ptime = time
+
+
+
+```
+
+```{r}
+if (nrow(dfw[parLicorCampbell == -5]) == 0) {
+  dfw$parLicorCampbell[is.na(dfw$parLicorCampbell)] = -5
+} else warning("NA values not shown. \n (Also, QC needed: PAR values out of expected range)", call. = FALSE)
+
+dNa <- dfw[parLicorCampbell == -5]
+
+myplot = ggplot(data = dfw, aes(x = ptime, y = parLicorCampbell)) + 
+  geom_point(data = dNa, color = "red") +
+  geom_line() + 
+  labs(y = bquote(Par ~ Flux ~ Average ~ .("(") * mu * mol ~ Photons ~ m^-2 * s^-1 * .(")")),
+       x = "Date") 
+
+
+dfw$WeekOfYear = strftime(x = dfw$ptime, format = "%V")
+dfw$Year = strftime(x = dfw$ptime, format = "%Y")
+
+
+myplot + facet_wrap(facets = vars(dfw$Year, dfw$WeekOfYear),
+                    scales = "free_x", 
+                    labeller = label_context,
+                    ncol = 1,
+                    strip.position = "right")
+
+ggsave("testplot.pdf", height = nrow(dfw)/1000, units = "in", device = "pdf", limitsize = FALSE)
+```
+
+

@@ -1,0 +1,372 @@
+---
+title: "Processing"
+---
+
+```{r setup, include=FALSE}
+
+# Do not echo code chunks in rendered document
+
+knitr::opts_chunk$set(echo = FALSE);
+
+# Do not render values returned by code in code chunks
+
+knitr::opts_chunk$set(results = "hide")
+
+# Clear the global environment
+
+rm(list = ls());
+
+# Create an environment to hold metadata to be transferred to later scripts
+
+metaEnv <- new.env();
+
+```
+
+<!-- Automatically populate a description of the compilation of this file. -->
+
+Generated from R markdown file **./02_protocol/`r knitr::current_input()`**, last compiled on `r Sys.time()`
+
+```{r}
+
+# Make sure target directories exist.
+
+tempPath <- "./03_incremental/temp";
+dir.create(
+  path = tempPath,
+  recursive = TRUE,
+  showWarnings = FALSE
+);
+productPath <- "./04_product";
+dir.create(
+  path = productPath,
+  recursive = TRUE,
+  showWarnings = FALSE
+);
+
+# Read the project attributes table
+# and restructure for convenience.
+
+atts <- as.data.frame(
+  t(as.matrix(
+    readxl::read_excel(
+      path = "./01_input/meta/attributes.xlsx",
+      sheet = "attributes",
+      range = readxl::cell_limits(ul = c(2, 3)),
+      col_names = TRUE,
+      col_types = rep("text", times = 10)
+    )
+  ))
+);
+names(atts) <- readxl::read_excel(
+  path = "./01_input/meta/attributes.xlsx",
+  sheet = "attributes",
+  range = readxl::cell_limits(ul = c(3, 2), lr = c(NA, 2)),
+  col_names = "rownames",
+  col_types = "text"
+)$rownames;
+atts[is.na(atts)] <- "";
+
+# Specify the range of scale for time axes on plots
+
+xmin <- as.POSIXct("2018-10-01");
+xmax <- as.POSIXct("2019-09-20");
+
+```
+
+## Load Annual Aggregate NH4 SRP data table
+
+```{r}
+
+# Specify the column names of the files being read
+
+col.names = c(
+  "rowNumber",
+  "project",
+  "dateString",
+  "day",
+  "month",
+  "year",
+  "siteID",
+  "rep",
+  "NH4N",
+  "SRP",
+  "NO3N"
+);
+
+# Read data from input file(s)
+
+table <- read.table(
+    file = "./03_incremental/00b-202110-QAQC/AnnualAggregateFile-NH4-SRP-NO3-WY2019.csv",
+    sep = ",",
+    skip = 1,
+    header = FALSE,
+    col.names = col.names
+);
+
+```
+
+Read a total of `r nrow(table)` records for the NH4 SRP NO3 data table.
+
+## Adjust NH4 SRP NO3 table and define column metadata
+
+Reformat the date string to YYYYmmdd. Reformat the site ID for clear matches with standard with leading zeroes. Remove unnecessary fields.
+
+```{r}
+
+# Define the table of metadata for the table
+
+metaEnv$tableNH4SRP.meta <- data.frame(
+  dateString = atts$date,
+  year = atts$year,
+  month = atts$month,
+  day = atts$day,
+  siteID = atts$siteID,
+  rep = atts$rep,
+  NH4N = atts$NH4N,
+  SRP = atts$SRP,
+  NO3N = atts$NO3N,
+  row.names = rownames(atts)
+);
+
+# Filter columns for data product table
+
+table <- table[, names(metaEnv$tableNH4SRP.meta)];
+
+# Specify table name and description
+
+metaEnv$tableNH4SRP.name <- "AnnualAggregateFile-NH4-SRP-NO3-WY2019";
+metaEnv$tableNH4SRP.desc <- paste(
+  "Surface water samples are collected from thirteen sites ",
+  "along the mainstem of the Upper Clark Fork River. ",
+  #"and three sites from major tributaries to the Upper Clark Fork River ",
+  #"including the Little Blackfoot, Flint Creek, and Rock Creek. ",
+  "Water samples are collected at each monitoring site in triplicate ",
+  "and filtered with a 0.7 µm glass fiber filter. Nutrient samples ",
+  "are analyzed using a spectrophotometric flow injection analyzer for nitrate (N-NO3), ",
+  "soluble reactive phosphorus ((SRP) P-PO4), and ammonium (N-NH4) concentrations."
+);
+
+# Create a numerical dates to determine earliest and latest dates for metadata
+
+# dates <- as.POSIXct(table$dateString, format = "%Y-%m-%dT%H:%M:%SZ", tz = "");
+dates <- as.POSIXct(table$dateString, format = "%d-%b-%y", tz = "")
+metaEnv$startTime <- min(dates);
+metaEnv$endTime <- max(dates);
+
+# Reformat date string and siteID
+
+table$dateString <- format(dates, format = "%Y%m%d");
+# table$siteID <- sprintf(fmt = "%03d", table$siteID);
+# for siteIDs with letters (e.g. 8a, 8b) need to use:
+# RAPCOMMENT: The siteIDs need to match the official siteID strings
+# exactly to work with later code, In other words, site 1 has to be "001", not "1" or "01".
+# table$siteID <- sprintf(fmt = "%s", table$siteID)
+# The "stringi" package has a nice tool for doing multiple pattern replacements
+# at the same time. Probably other ways to do this, but the following works
+# with the site list as of 2022 July 13.
+table$siteID <- stringi::stri_replace_all_regex(
+  str = table$siteID, 
+  pattern = c(
+    "^0?1$", "^0?2$", "^0?3$", "^0?4$", "^0?5$",
+    "^0?6$", "^0?7$", "^0?8$", "^0?8a$", "^0?9$",
+    "^0?9a$", "^0?10$", "^0?11$", "^0?11a$", "^0?12$",
+    "^0?13$"
+  ), 
+  replacement = c(
+    "001", "002", "003", "004", "005",
+    "006", "007", "008", "008a", "009",
+    "009a", "010", "011", "011a", "012",
+    "013"
+  ), 
+  vectorize = FALSE
+)
+
+# Update metadata site list with all sites with data in this table.
+
+sites <- sort(unique(table$siteID));
+metaEnv$sites <- sites;
+
+```
+
+`r sprintf("**%s.csv**", metaEnv$tableNH4SRP.name)`: `r metaEnv$tableNH4SRP.desc`
+
+`r knitr::kable(x = metaEnv$tableNH4SRP.meta) `
+
+```{r}
+
+# Write the data table to the product
+
+write.csv(
+  x = table,
+  file = sprintf(
+    "%s/%s.csv",
+    productPath,
+    metaEnv$tableNH4SRP.name
+  ),
+  row.names = FALSE
+)
+
+# Open a PDF device to render the data visualization
+
+pdf(
+  file = sprintf(
+    "%s/%s_vis.pdf", 
+    productPath,
+    metaEnv$tableNH4SRP.name
+  ),
+  width = 12,
+  height = 8
+);
+
+  # Set the canvas margins around the graphing area
+
+  par(
+    mar = c(4.2, 4.5, 1, 1)
+  )
+
+# NH4 plot
+  
+  # Plot the data with a monthly abscissa
+  
+  plot(
+    x = dates,
+    xlab = "Time",
+    xaxt = "n",
+    xlim = c(xmin, xmax),
+    y = table$NH4N,
+    ylab = bquote(
+        .("[")* NH[4]^+{}* .("]") ~ .("(") ~mg ~N~ L^{-1} ~ .(")")
+    ),
+
+    col = 1:length(sites)
+  );
+  axis.POSIXct(
+    side = 1,
+    at = seq.POSIXt(
+      from = xmin,
+      to = xmax,
+      by = "months"
+    ),
+    format = "%Y %b"
+  )
+  
+  # Render the legend with the site colors
+  
+  legend(
+    x = "topleft",
+    bty = "n",
+    legend = sites,
+    pch = 1,
+    col = 1:length(sites),
+    title = "Site ID"
+  )
+
+# PO4 plot  
+  
+   # Plot the data with a monthly abscissa
+  
+  plot(
+    x = dates,
+    xlab = "Time",
+    xaxt = "n",
+    xlim = c(xmin, xmax),
+    y = table$SRP,
+    ylab = bquote(
+        .("[")* SRP* .("]") ~ .("(") ~mg ~P~ L^{-1} ~ .(")")
+    ),
+    col = 1:length(sites)
+  );
+  axis.POSIXct(
+    side = 1,
+    at = seq.POSIXt(
+      from = xmin,
+      to = xmax,
+      by = "months"
+    ),
+    format = "%Y %b"
+  )
+  
+  # Render the legend with the site colors
+  
+  legend(
+    x = "topleft",
+    bty = "n",
+    legend = sites,
+    pch = 1,
+    col = 1:length(sites),
+    title = "Site ID"
+  )
+  
+# NO3 plot  
+  
+   # Plot the data with a monthly abscissa
+  
+  plot(
+    x = dates,
+    xlab = "Time",
+    xaxt = "n",
+    xlim = c(xmin, xmax),
+    y = table$NO3N,
+    ylab = bquote(
+        .("[")* NO3N* .("]") ~ .("(") ~mg ~N~ L^{-1} ~ .(")")
+    ),
+    col = 1:length(sites)
+  );
+  axis.POSIXct(
+    side = 1,
+    at = seq.POSIXt(
+      from = xmin,
+      to = xmax,
+      by = "months"
+    ),
+    format = "%Y %b"
+  )
+  
+  # Render the legend with the site colors
+  
+  legend(
+    x = "topleft",
+    bty = "n",
+    legend = sites,
+    pch = 1,
+    col = 1:length(sites),
+    title = "Site ID"
+  )
+
+# Close the device to write the PDF file
+  
+dev.off();
+
+```
+
+Data table written to `r sprintf("./%s.csv", metaEnv$tableNH4SRP.name) `
+
+## Write metdata object
+
+```{r}
+
+# Specify the path to the temporary metadata file and write
+# the metadata environment to it
+
+file <- sprintf(
+  "%s/metadata.RData",
+  tempPath
+);
+saveRDS(
+  object = metaEnv,
+  file = file
+)
+
+```
+
+Temporary metadata file written to `r file `
+
+## Summary of R session used to compile this Rmarkdown
+
+```{r results = "markup"}
+
+# Render the session information
+
+print(sessionInfo()) 
+
+```
